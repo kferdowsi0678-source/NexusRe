@@ -21,7 +21,8 @@
     "migration:run": "npm run typeorm -- migration:run -d src/config/typeorm.config.ts",
     "migration:revert": "npm run typeorm -- migration:revert -d src/config/typeorm.config.ts",
     "seed": "ts-node -r tsconfig-paths/register src/database/seeds/run-seed.ts",
-    "seed:forms": "ts-node -r tsconfig-paths/register src/database/seeds/seed-form-schemas.ts"
+    "seed:forms": "ts-node -r tsconfig-paths/register src/database/seeds/seed-form-schemas.ts",
+    "seed:additional-forms": "ts-node -r tsconfig-paths/register src/database/seeds/seed-additional-forms.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

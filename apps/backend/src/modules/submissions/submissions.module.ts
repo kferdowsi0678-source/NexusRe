@@ -5,11 +5,12 @@ import { SubmissionsService } from './submissions.service';
 import { SubmissionsController } from './submissions.controller';
 import { Submission } from './entities/submission.entity';
 import { SubmissionDocument } from './entities/submission-document.entity';
+import { SubmissionHistory } from './entities/submission-history.entity';
 import { Quote } from './entities/quote.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Submission, SubmissionDocument, Quote]),
+    TypeOrmModule.forFeature([Submission, SubmissionDocument, SubmissionHistory, Quote]),
     MulterModule.register({
       limits: {
         fileSize: 50 * 1024 * 1024, // 50MB
