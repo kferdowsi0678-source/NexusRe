@@ -2,14 +2,19 @@ import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/commo
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Submission, SubmissionStatus } from './entities/submission.entity';
+import { SubmissionDocument } from './entities/submission-document.entity';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { UpdateSubmissionDto } from './dto/update-submission.dto';
+import { StorageService, DocumentCategory } from '../storage/storage.service';
 
 @Injectable()
 export class SubmissionsService {
   constructor(
     @InjectRepository(Submission)
     private submissionsRepository: Repository<Submission>,
+    @InjectRepository(SubmissionDocument)
+    private documentsRepository: Repository<SubmissionDocument>,
+    private storageService: StorageService,
   ) {}
 
   async create(createSubmissionDto: CreateSubmissionDto, userId: string): Promise<Submission> {
@@ -95,6 +100,70 @@ export class SubmissionsService {
     await this.submissionsRepository.save(submission);
 
     return score;
+  }
+
+  async uploadDocument(
+    submissionId: string,
+    file: Express.Multer.File,
+    category: DocumentCategory,
+    description: string,
+    userId: string,
+  ): Promise<SubmissionDocument> {
+    const submission = await this.findOne(submissionId);
+
+    const { key, url } = await this.storageService.uploadFile(file, submissionId, category);
+
+    const document = this.documentsRepository.create({
+      fileName: file.originalname,
+      fileType: file.mimetype,
+      fileSize: file.size,
+      fileUrl: url,
+      s3Key: key,
+      description,
+      submissionId,
+      uploadedById: userId,
+    });
+
+    return this.documentsRepository.save(document);
+  }
+
+  async getDocuments(submissionId: string): Promise<SubmissionDocument[]> {
+    return this.documentsRepository.find({
+      where: { submissionId },
+      relations: ['uploadedBy'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async getDocumentDownloadUrl(documentId: string): Promise<{ downloadUrl: string }> {
+    const document = await this.documentsRepository.findOne({
+      where: { id: documentId },
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    const downloadUrl = await this.storageService.getPresignedDownloadUrl(document.s3Key);
+    return { downloadUrl };
+  }
+
+  async deleteDocument(documentId: string, userId: string): Promise<void> {
+    const document = await this.documentsRepository.findOne({
+      where: { id: documentId },
+      relations: ['submission'],
+    });
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    if (document.submission.submittedById !== userId) {
+      throw new ForbiddenException('You do not have permission to delete this document');
+    }
+
+    await this.storageService.deleteFile(document.s3Key);
+    await this.documentsRepository.remove(document);
   }
 
   async remove(id: string, userId: string): Promise<void> {
