@@ -5,7 +5,8 @@ import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module'; 
 import { OrganizationsModule } from './modules/organizations/organizations.module'; 
 import { SubmissionsModule } from './modules/submissions/submissions.module'; 
-import { StorageModule } from './modules/storage/storage.module'; 
+import { StorageModule } from './modules/storage/storage.module';
+import { FormsModule } from './modules/forms/forms.module'; 
 import { validationSchema } from './config/env.validation'; 
  
 @Module({ 
@@ -37,7 +38,8 @@ import { validationSchema } from './config/env.validation';
     AuthModule, 
     UsersModule, 
     OrganizationsModule, 
-    SubmissionsModule, 
+    SubmissionsModule,
+    FormsModule, 
   ], 
 }) 
-export class AppModule {}
+export class AppModule {}
