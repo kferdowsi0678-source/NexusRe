@@ -41,11 +41,11 @@ export default function RegisterPage() {
     const fetchData = async () => {
       try {
         const [orgsRes, rolesRes] = await Promise.all([
-          api.get('/organizations'),
-          api.get('/roles')
+          api.get('/public/organizations'),
+          api.get('/public/roles')
         ]);
         setOrganizations(orgsRes.data);
-        setRoles(rolesRes.data.filter((r: Role) => r.name !== 'super_admin'));
+        setRoles(rolesRes.data);
         setLoading(false);
       } catch (err) {
         console.error('Failed to fetch data:', err);

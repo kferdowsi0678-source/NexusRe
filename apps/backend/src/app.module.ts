@@ -7,6 +7,7 @@ import { OrganizationsModule } from './modules/organizations/organizations.modul
 import { SubmissionsModule } from './modules/submissions/submissions.module'; 
 import { StorageModule } from './modules/storage/storage.module';
 import { FormsModule } from './modules/forms/forms.module'; 
+import { PublicModule } from './modules/public/public.module';
 import { validationSchema } from './config/env.validation'; 
  
 @Module({ 
@@ -39,7 +40,8 @@ import { validationSchema } from './config/env.validation';
     UsersModule, 
     OrganizationsModule, 
     SubmissionsModule,
-    FormsModule, 
+    FormsModule,
+    PublicModule, 
   ], 
 }) 
 export class AppModule {}
