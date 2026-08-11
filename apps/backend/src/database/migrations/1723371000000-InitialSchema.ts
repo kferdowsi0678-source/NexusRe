@@ -4,6 +4,10 @@ export class InitialSchema1723371000000 implements MigrationInterface {
   name = 'InitialSchema1723371000000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // uuid_generate_v4() used by every table below lives in uuid-ossp,
+    // which Postgres does not enable by default.
+    await queryRunner.query(`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`);
+
     // Create organizations table
     await queryRunner.query(`
       CREATE TABLE "organizations" (
@@ -78,4 +82,4 @@ export class InitialSchema1723371000000 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "roles"`);
     await queryRunner.query(`DROP TABLE "organizations"`);
   }
-}
+}

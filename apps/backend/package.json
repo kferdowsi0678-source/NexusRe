@@ -60,6 +60,22 @@
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.3.3",
     "@nestjs/cli": "10.4.9",
-    "@nestjs/schematics": "10.2.3"
+    "@nestjs/schematics": "10.2.3",
+    "jest": "29.7.0",
+    "ts-jest": "29.2.5",
+    "@types/jest": "29.5.14"
+  },
+  "jest": {
+    "moduleFileExtensions": [
+      "js",
+      "json",
+      "ts"
+    ],
+    "rootDir": "src",
+    "testRegex": ".*\\.spec\\.ts$",
+    "transform": {
+      "^.+\\.(t|j)s$": "ts-jest"
+    },
+    "testEnvironment": "node"
   }
 }
