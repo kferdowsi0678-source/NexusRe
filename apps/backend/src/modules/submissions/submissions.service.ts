@@ -27,19 +27,80 @@ export class SubmissionsService {
     return this.submissionsRepository.save(submission);
   }
 
-  async findAll(organizationId?: string): Promise<Submission[]> {
+  async findAll(filters: any): Promise<{ data: Submission[]; total: number; page: number; limit: number }> {
+    const {
+      search,
+      status,
+      type,
+      lineOfBusiness,
+      cedantId,
+      createdAfter,
+      createdBefore,
+      page = 1,
+      limit = 20,
+      sortBy = 'createdAt',
+      sortOrder = 'DESC',
+    } = filters;
+
     const query = this.submissionsRepository
       .createQueryBuilder('submission')
       .leftJoinAndSelect('submission.cedant', 'cedant')
       .leftJoinAndSelect('submission.submittedBy', 'submittedBy')
-      .leftJoinAndSelect('submission.documents', 'documents')
-      .orderBy('submission.createdAt', 'DESC');
+      .leftJoinAndSelect('submission.documents', 'documents');
 
-    if (organizationId) {
-      query.where('submission.cedantId = :organizationId', { organizationId });
+    // Search filter
+    if (search) {
+      query.andWhere(
+        '(submission.title ILIKE :search OR submission.description ILIKE :search)',
+        { search: `%${search}%` },
+      );
     }
 
-    return query.getMany();
+    // Status filter
+    if (status) {
+      query.andWhere('submission.status = :status', { status });
+    }
+
+    // Type filter
+    if (type) {
+      query.andWhere('submission.type = :type', { type });
+    }
+
+    // Line of Business filter
+    if (lineOfBusiness) {
+      query.andWhere('submission.lineOfBusiness = :lineOfBusiness', { lineOfBusiness });
+    }
+
+    // Cedant filter
+    if (cedantId) {
+      query.andWhere('submission.cedantId = :cedantId', { cedantId });
+    }
+
+    // Date range filters
+    if (createdAfter) {
+      query.andWhere('submission.createdAt >= :createdAfter', { createdAfter });
+    }
+    if (createdBefore) {
+      query.andWhere('submission.createdAt <= :createdBefore', { createdBefore });
+    }
+
+    // Sorting
+    const allowedSortFields = ['createdAt', 'updatedAt', 'title', 'status'];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    query.orderBy(`submission.${sortField}`, sortOrder);
+
+    // Pagination
+    const total = await query.getCount();
+    query.skip((page - 1) * limit).take(limit);
+
+    const data = await query.getMany();
+
+    return {
+      data,
+      total,
+      page: Number(page),
+      limit: Number(limit),
+    };
   }
 
   async findOne(id: string): Promise<Submission> {
