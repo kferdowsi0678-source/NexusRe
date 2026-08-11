@@ -3,9 +3,19 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Submission, SubmissionStatus } from './entities/submission.entity';
 import { SubmissionDocument } from './entities/submission-document.entity';
+import { SubmissionHistory } from './entities/submission-history.entity';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { UpdateSubmissionDto } from './dto/update-submission.dto';
 import { StorageService, DocumentCategory } from '../storage/storage.service';
+
+export enum ChangeType {
+  CREATED = 'created',
+  UPDATED = 'updated',
+  STATUS_CHANGED = 'status_changed',
+  DOCUMENT_ADDED = 'document_added',
+  DOCUMENT_REMOVED = 'document_removed',
+  SUBMITTED = 'submitted',
+}
 
 @Injectable()
 export class SubmissionsService {
@@ -14,6 +24,8 @@ export class SubmissionsService {
     private submissionsRepository: Repository<Submission>,
     @InjectRepository(SubmissionDocument)
     private documentsRepository: Repository<SubmissionDocument>,
+    @InjectRepository(SubmissionHistory)
+    private historyRepository: Repository<SubmissionHistory>,
     private storageService: StorageService,
   ) {}
 
@@ -24,7 +36,12 @@ export class SubmissionsService {
       status: SubmissionStatus.DRAFT,
     });
 
-    return this.submissionsRepository.save(submission);
+    const saved = await this.submissionsRepository.save(submission);
+    
+    // Log creation
+    await this.logHistory(saved.id, userId, ChangeType.CREATED, { submission: createSubmissionDto });
+
+    return saved;
   }
 
   async findAll(filters: any): Promise<{ data: Submission[]; total: number; page: number; limit: number }> {
@@ -119,34 +136,38 @@ export class SubmissionsService {
       throw new ForbiddenException('You do not have permission to update this submission');
     }
 
+    const oldData = { ...submission };
     Object.assign(submission, updateSubmissionDto);
+    const updated = await this.submissionsRepository.save(submission);
 
-    return this.submissionsRepository.save(submission);
+    // Log update
+    await this.logHistory(id, userId, ChangeType.UPDATED, {
+      old: oldData,
+      new: updateSubmissionDto,
+    });
+
+    return updated;
   }
 
   async calculateCompletenessScore(id: string): Promise<number> {
     const submission = await this.findOne(id);
     let score = 0;
 
-    // Basic information (30 points)
     if (submission.title && submission.title.length > 5) score += 10;
     if (submission.description && submission.description.length > 20) score += 10;
     if (submission.lineOfBusiness) score += 5;
     if (submission.type) score += 5;
 
-    // Financial information (25 points)
     if (submission.sumInsured && submission.sumInsured > 0) score += 15;
     if (submission.currency) score += 5;
     if (submission.inceptionDate && submission.expiryDate) score += 5;
 
-    // Risk details (25 points)
     if (submission.riskDetails && Object.keys(submission.riskDetails).length > 0) {
       const detailsCount = Object.keys(submission.riskDetails).length;
       score += Math.min(15, detailsCount * 3);
     }
     if (submission.lossHistory && Object.keys(submission.lossHistory).length > 0) score += 10;
 
-    // Documents (20 points)
     if (submission.documents && submission.documents.length > 0) {
       const docCount = submission.documents.length;
       score += Math.min(20, docCount * 5);
@@ -177,10 +198,17 @@ export class SubmissionsService {
 
     updated.status = SubmissionStatus.SUBMITTED;
     updated.submittedAt = new Date();
-    return this.submissionsRepository.save(updated);
+    const result = await this.submissionsRepository.save(updated);
+
+    // Log submission
+    await this.logHistory(id, userId, ChangeType.SUBMITTED, {
+      completenessScore: updated.completenessScore,
+    });
+
+    return result;
   }
 
-  async updateStatus(id: string, status: SubmissionStatus): Promise<Submission> {
+  async updateStatus(id: string, status: SubmissionStatus, userId?: string): Promise<Submission> {
     const submission = await this.findOne(id);
     
     const allowedTransitions: Record<SubmissionStatus, SubmissionStatus[]> = {
@@ -198,11 +226,22 @@ export class SubmissionsService {
       throw new ForbiddenException(`Cannot transition from ${submission.status} to ${status}`);
     }
 
+    const oldStatus = submission.status;
     submission.status = status;
     if (status === SubmissionStatus.SUBMITTED && !submission.submittedAt) {
       submission.submittedAt = new Date();
     }
-    return this.submissionsRepository.save(submission);
+    const result = await this.submissionsRepository.save(submission);
+
+    // Log status change
+    if (userId) {
+      await this.logHistory(id, userId, ChangeType.STATUS_CHANGED, {
+        oldStatus,
+        newStatus: status,
+      });
+    }
+
+    return result;
   }
 
   async uploadDocument(
@@ -227,7 +266,15 @@ export class SubmissionsService {
       uploadedById: userId,
     });
 
-    return this.documentsRepository.save(document);
+    const saved = await this.documentsRepository.save(document);
+
+    // Log document addition
+    await this.logHistory(submissionId, userId, ChangeType.DOCUMENT_ADDED, {
+      documentId: saved.id,
+      fileName: file.originalname,
+    });
+
+    return saved;
   }
 
   async getDocuments(submissionId: string): Promise<SubmissionDocument[]> {
@@ -267,6 +314,12 @@ export class SubmissionsService {
 
     await this.storageService.deleteFile(document.s3Key);
     await this.documentsRepository.remove(document);
+
+    // Log document removal
+    await this.logHistory(document.submissionId, userId, ChangeType.DOCUMENT_REMOVED, {
+      documentId,
+      fileName: document.fileName,
+    });
   }
 
   async remove(id: string, userId: string): Promise<void> {
@@ -277,5 +330,58 @@ export class SubmissionsService {
     }
 
     await this.submissionsRepository.remove(submission);
+  }
+
+  // History tracking methods
+  async logHistory(
+    submissionId: string,
+    userId: string,
+    changeType: ChangeType,
+    changes?: any,
+    comment?: string,
+  ): Promise<void> {
+    const history = this.historyRepository.create({
+      submissionId,
+      userId,
+      changeType,
+      changes,
+      comment,
+    });
+
+    await this.historyRepository.save(history);
+  }
+
+  async getHistory(submissionId: string): Promise<SubmissionHistory[]> {
+    return this.historyRepository.find({
+      where: { submissionId },
+      relations: ['user'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async getSubmissionTimeline(submissionId: string): Promise<any> {
+    const history = await this.getHistory(submissionId);
+    const submission = await this.findOne(submissionId);
+
+    return {
+      submission: {
+        id: submission.id,
+        title: submission.title,
+        status: submission.status,
+        createdAt: submission.createdAt,
+        updatedAt: submission.updatedAt,
+      },
+      timeline: history.map(h => ({
+        id: h.id,
+        type: h.changeType,
+        user: {
+          name: `${h.user.firstName} ${h.user.lastName}`,
+          email: h.user.email,
+        },
+        changes: h.changes,
+        comment: h.comment,
+        timestamp: h.createdAt,
+      })),
+    };
   }
 }

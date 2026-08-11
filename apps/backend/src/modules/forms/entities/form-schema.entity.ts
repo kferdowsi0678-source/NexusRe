@@ -42,13 +42,13 @@ export class FormSchema {
   version: string;
 
   @Column({ type: 'json' })
-  schema: any; // JSON Schema definition
+  schema: any;
 
   @Column({ type: 'json', nullable: true })
-  uiSchema: any; // UI rendering hints
+  uiSchema: any;
 
   @Column({ type: 'json', nullable: true })
-  validationRules: any; // Custom validation rules
+  validationRules: any;
 
   @Column({ default: true })
   isActive: boolean;
