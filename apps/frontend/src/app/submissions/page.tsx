@@ -30,6 +30,8 @@ export default function SubmissionsPage() {
   });
 
   const { data, isLoading } = useSubmissions(filters);
+  const items = data?.data ?? [];
+  const total = data?.total ?? 0;
 
   const handleFilterChange = (key: string, value: any) => {
     setFilters(prev => ({ ...prev, [key]: value, page: 1 }));
@@ -150,7 +152,7 @@ export default function SubmissionsPage() {
         <div className="bg-white shadow rounded-lg p-6 text-center">
           <div className="text-gray-500">Loading submissions...</div>
         </div>
-      ) : data?.data?.length === 0 ? (
+      ) : items.length === 0 ? (
         <div className="bg-white shadow rounded-lg p-6 text-center">
           <svg
             className="mx-auto h-12 w-12 text-gray-400"
@@ -180,7 +182,7 @@ export default function SubmissionsPage() {
         <>
           <div className="bg-white shadow overflow-hidden sm:rounded-lg">
             <ul className="divide-y divide-gray-200">
-              {data?.data?.map((submission: any) => (
+              {items.map((submission: any) => (
                 <li
                   key={submission.id}
                   className="hover:bg-gray-50 cursor-pointer"
@@ -243,7 +245,7 @@ export default function SubmissionsPage() {
           </div>
 
           {/* Pagination */}
-          {data?.total > filters.limit && (
+          {total > filters.limit && (
             <div className="bg-white px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6 rounded-lg shadow">
               <div className="flex-1 flex justify-between sm:hidden">
                 <button
@@ -255,7 +257,7 @@ export default function SubmissionsPage() {
                 </button>
                 <button
                   onClick={() => handlePageChange(filters.page + 1)}
-                  disabled={filters.page * filters.limit >= data.total}
+                  disabled={filters.page * filters.limit >= total}
                   className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                 >
                   Next
@@ -267,9 +269,9 @@ export default function SubmissionsPage() {
                     Showing{' '}
                     <span className="font-medium">{(filters.page - 1) * filters.limit + 1}</span> to{' '}
                     <span className="font-medium">
-                      {Math.min(filters.page * filters.limit, data.total)}
+                      {Math.min(filters.page * filters.limit, total)}
                     </span>{' '}
-                    of <span className="font-medium">{data.total}</span> results
+                    of <span className="font-medium">{total}</span> results
                   </p>
                 </div>
                 <div className="flex space-x-2">
@@ -282,7 +284,7 @@ export default function SubmissionsPage() {
                   </button>
                   <button
                     onClick={() => handlePageChange(filters.page + 1)}
-                    disabled={filters.page * filters.limit >= data.total}
+                    disabled={filters.page * filters.limit >= total}
                     className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
                   >
                     Next

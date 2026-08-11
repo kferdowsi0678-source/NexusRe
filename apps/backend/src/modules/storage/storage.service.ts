@@ -7,7 +7,7 @@ import {
   DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import { v4 as uuidv4 } from 'uuid';
+import { randomUUID } from 'node:crypto';
 
 export enum DocumentCategory {
   RISK_SURVEY = 'risk_survey',
@@ -24,13 +24,13 @@ export class StorageService {
   private bucketName: string;
 
   constructor(private configService: ConfigService) {
-    this.bucketName = this.configService.get<string>('AWS_S3_BUCKET');
+    this.bucketName = this.configService.getOrThrow<string>('AWS_S3_BUCKET');
     
     this.s3Client = new S3Client({
-      region: this.configService.get<string>('AWS_REGION'),
+      region: this.configService.getOrThrow<string>('AWS_REGION'),
       credentials: {
-        accessKeyId: this.configService.get<string>('AWS_ACCESS_KEY_ID'),
-        secretAccessKey: this.configService.get<string>('AWS_SECRET_ACCESS_KEY'),
+        accessKeyId: this.configService.getOrThrow<string>('AWS_ACCESS_KEY_ID'),
+        secretAccessKey: this.configService.getOrThrow<string>('AWS_SECRET_ACCESS_KEY'),
       },
     });
   }
@@ -41,7 +41,7 @@ export class StorageService {
     category: DocumentCategory = DocumentCategory.OTHER,
   ): Promise<{ key: string; url: string }> {
     const fileExtension = file.originalname.split('.').pop();
-    const key = `submissions/${submissionId}/${category}/${uuidv4()}.${fileExtension}`;
+    const key = `submissions/${submissionId}/${category}/${randomUUID()}.${fileExtension}`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
@@ -80,7 +80,7 @@ export class StorageService {
     expiresIn: number = 3600,
   ): Promise<{ uploadUrl: string; key: string }> {
     const fileExtension = fileName.split('.').pop();
-    const key = `submissions/${submissionId}/${category}/${uuidv4()}.${fileExtension}`;
+    const key = `submissions/${submissionId}/${category}/${randomUUID()}.${fileExtension}`;
 
     const command = new PutObjectCommand({
       Bucket: this.bucketName,

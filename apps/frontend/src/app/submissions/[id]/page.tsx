@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuthStore } from '@/lib/auth-store';
 import {
@@ -46,7 +46,6 @@ function Field({ label, value }: { label: string; value?: React.ReactNode }) {
 
 export default function SubmissionDetailPage() {
   const params = useParams();
-  const router = useRouter();
   const searchParams = useSearchParams();
   const id = String(params.id);
 

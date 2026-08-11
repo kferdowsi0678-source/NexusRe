@@ -267,3 +267,8 @@ Proprietary - All rights reserved
 ## 📞 Support
 
 For support and questions, please open an issue on GitHub or contact the development team.
+## Toolchain note
+
+The repo is configured for pnpm workspaces, but every command also works with
+`npm install` / `npm run <script>` executed inside `apps/backend` or
+`apps/frontend`. Build status and runtime caveats live in [STATUS.md](./STATUS.md).

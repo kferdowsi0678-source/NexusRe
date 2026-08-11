@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useResetPassword } from '@/lib/auth-api';
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') || '';
@@ -126,5 +126,21 @@ export default function ResetPasswordPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// useSearchParams() opts the tree into client-side rendering, so the reader has to
+// sit behind a Suspense boundary or the route fails to prerender at build time.
+export default function ResetPasswordPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <p className="text-sm text-gray-600">Loading...</p>
+        </div>
+      }
+    >
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

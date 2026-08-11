@@ -3,19 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Submission, SubmissionStatus } from './entities/submission.entity';
 import { SubmissionDocument } from './entities/submission-document.entity';
-import { SubmissionHistory } from './entities/submission-history.entity';
+import { SubmissionHistory, ChangeType } from './entities/submission-history.entity';
 import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { UpdateSubmissionDto } from './dto/update-submission.dto';
 import { StorageService, DocumentCategory } from '../storage/storage.service';
-
-export enum ChangeType {
-  CREATED = 'created',
-  UPDATED = 'updated',
-  STATUS_CHANGED = 'status_changed',
-  DOCUMENT_ADDED = 'document_added',
-  DOCUMENT_REMOVED = 'document_removed',
-  SUBMITTED = 'submitted',
-}
 
 @Injectable()
 export class SubmissionsService {
@@ -248,7 +239,7 @@ export class SubmissionsService {
     submissionId: string,
     file: Express.Multer.File,
     category: DocumentCategory,
-    description: string,
+    description: string | undefined,
     userId: string,
   ): Promise<SubmissionDocument> {
     const submission = await this.findOne(submissionId);

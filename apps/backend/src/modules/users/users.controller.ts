@@ -14,6 +14,7 @@ import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../common/interfaces/authenticated-request';
 
 @ApiTags('users')
 @ApiBearerAuth()
@@ -36,7 +37,7 @@ export class UsersController {
 
   @Get('me')
   @ApiOperation({ summary: 'Get current user profile' })
-  getProfile(@Request() req) {
+  getProfile(@Request() req: AuthenticatedRequest) {
     return this.usersService.findOne(req.user.userId);
   }
 

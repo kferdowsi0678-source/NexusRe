@@ -1,6 +1,6 @@
 import { IsString, IsNotEmpty, IsEnum, IsOptional } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { DocumentCategory } from '../storage/storage.service';
+import { DocumentCategory } from '../../storage/storage.service';
 
 export class UploadDocumentDto {
   @ApiProperty({ example: 'submissionId-uuid' })

@@ -20,6 +20,7 @@ import { CreateSubmissionDto } from './dto/create-submission.dto';
 import { UpdateSubmissionDto } from './dto/update-submission.dto';
 import { UploadDocumentDto, GetPresignedUploadUrlDto } from './dto/upload-document.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../common/interfaces/authenticated-request';
 import { SubmissionStatus } from './entities/submission.entity';
 import { StorageService } from '../storage/storage.service';
 
@@ -35,7 +36,7 @@ export class SubmissionsController {
 
   @Post()
   @ApiOperation({ summary: 'Create a new submission' })
-  create(@Body() createSubmissionDto: CreateSubmissionDto, @Request() req) {
+  create(@Body() createSubmissionDto: CreateSubmissionDto, @Request() req: AuthenticatedRequest) {
     return this.submissionsService.create(createSubmissionDto, req.user.userId);
   }
 
@@ -63,14 +64,14 @@ export class SubmissionsController {
   update(
     @Param('id') id: string,
     @Body() updateSubmissionDto: UpdateSubmissionDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     return this.submissionsService.update(id, updateSubmissionDto, req.user.userId);
   }
 
   @Post(':id/submit')
   @ApiOperation({ summary: 'Submit a draft submission' })
-  async submitSubmission(@Param('id') id: string, @Request() req) {
+  async submitSubmission(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.submissionsService.submitSubmission(id, req.user.userId);
   }
 
@@ -88,7 +89,7 @@ export class SubmissionsController {
 
   @Delete(':id')
   @ApiOperation({ summary: 'Delete submission' })
-  remove(@Param('id') id: string, @Request() req) {
+  remove(@Param('id') id: string, @Request() req: AuthenticatedRequest) {
     return this.submissionsService.remove(id, req.user.userId);
   }
 
@@ -110,7 +111,7 @@ export class SubmissionsController {
     @Param('id') id: string,
     @UploadedFile() file: Express.Multer.File,
     @Body() uploadDto: UploadDocumentDto,
-    @Request() req,
+    @Request() req: AuthenticatedRequest,
   ) {
     if (!file) {
       throw new BadRequestException('No file uploaded');
@@ -158,7 +159,7 @@ export class SubmissionsController {
 
   @Delete('documents/:documentId')
   @ApiOperation({ summary: 'Delete document' })
-  async deleteDocument(@Param('documentId') documentId: string, @Request() req) {
+  async deleteDocument(@Param('documentId') documentId: string, @Request() req: AuthenticatedRequest) {
     return this.submissionsService.deleteDocument(documentId, req.user.userId);
   }
 }

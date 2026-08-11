@@ -14,6 +14,11 @@ import { LocalAuthGuard } from '../../common/guards/local-auth.guard';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
+import { User } from '../users/entities/user.entity';
+
+interface LocalAuthenticatedRequest {
+  user: User;
+}
 
 class RefreshTokenDto {
   @IsString()
@@ -57,7 +62,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login user' })
   @ApiResponse({ status: 200, description: 'User successfully logged in' })
-  async login(@Request() req) {
+  async login(@Request() req: LocalAuthenticatedRequest) {
     return this.authService.login(req.user);
   }
 
@@ -96,4 +101,4 @@ export class AuthController {
     await this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
     return { message: 'Password reset successfully' };
   }
-}
+}
