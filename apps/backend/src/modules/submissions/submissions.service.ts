@@ -48,7 +48,6 @@ export class SubmissionsService {
       .leftJoinAndSelect('submission.submittedBy', 'submittedBy')
       .leftJoinAndSelect('submission.documents', 'documents');
 
-    // Search filter
     if (search) {
       query.andWhere(
         '(submission.title ILIKE :search OR submission.description ILIKE :search)',
@@ -56,27 +55,22 @@ export class SubmissionsService {
       );
     }
 
-    // Status filter
     if (status) {
       query.andWhere('submission.status = :status', { status });
     }
 
-    // Type filter
     if (type) {
       query.andWhere('submission.type = :type', { type });
     }
 
-    // Line of Business filter
     if (lineOfBusiness) {
       query.andWhere('submission.lineOfBusiness = :lineOfBusiness', { lineOfBusiness });
     }
 
-    // Cedant filter
     if (cedantId) {
       query.andWhere('submission.cedantId = :cedantId', { cedantId });
     }
 
-    // Date range filters
     if (createdAfter) {
       query.andWhere('submission.createdAt >= :createdAfter', { createdAfter });
     }
@@ -84,12 +78,10 @@ export class SubmissionsService {
       query.andWhere('submission.createdAt <= :createdBefore', { createdBefore });
     }
 
-    // Sorting
     const allowedSortFields = ['createdAt', 'updatedAt', 'title', 'status'];
     const sortField = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
     query.orderBy(`submission.${sortField}`, sortOrder);
 
-    // Pagination
     const total = await query.getCount();
     query.skip((page - 1) * limit).take(limit);
 
@@ -123,22 +115,11 @@ export class SubmissionsService {
   ): Promise<Submission> {
     const submission = await this.findOne(id);
 
-    // Basic access control - can be enhanced with proper RBAC
     if (submission.submittedById !== userId) {
       throw new ForbiddenException('You do not have permission to update this submission');
     }
 
     Object.assign(submission, updateSubmissionDto);
-    return this.submissionsRepository.save(submission);
-  }
-
-  async updateStatus(id: string, status: SubmissionStatus): Promise<Submission> {
-    const submission = await this.findOne(id);
-    submission.status = status;
-
-    if (status === SubmissionStatus.SUBMITTED && !submission.submittedAt) {
-      submission.submittedAt = new Date();
-    }
 
     return this.submissionsRepository.save(submission);
   }
@@ -146,21 +127,82 @@ export class SubmissionsService {
   async calculateCompletenessScore(id: string): Promise<number> {
     const submission = await this.findOne(id);
     let score = 0;
-    const maxScore = 100;
 
-    // Basic scoring logic
-    if (submission.title) score += 10;
-    if (submission.description) score += 15;
-    if (submission.sumInsured) score += 15;
-    if (submission.inceptionDate && submission.expiryDate) score += 15;
-    if (submission.riskDetails) score += 20;
-    if (submission.lossHistory) score += 15;
-    if (submission.documents && submission.documents.length > 0) score += 10;
+    // Basic information (30 points)
+    if (submission.title && submission.title.length > 5) score += 10;
+    if (submission.description && submission.description.length > 20) score += 10;
+    if (submission.lineOfBusiness) score += 5;
+    if (submission.type) score += 5;
 
-    submission.completenessScore = score;
+    // Financial information (25 points)
+    if (submission.sumInsured && submission.sumInsured > 0) score += 15;
+    if (submission.currency) score += 5;
+    if (submission.inceptionDate && submission.expiryDate) score += 5;
+
+    // Risk details (25 points)
+    if (submission.riskDetails && Object.keys(submission.riskDetails).length > 0) {
+      const detailsCount = Object.keys(submission.riskDetails).length;
+      score += Math.min(15, detailsCount * 3);
+    }
+    if (submission.lossHistory && Object.keys(submission.lossHistory).length > 0) score += 10;
+
+    // Documents (20 points)
+    if (submission.documents && submission.documents.length > 0) {
+      const docCount = submission.documents.length;
+      score += Math.min(20, docCount * 5);
+    }
+
+    submission.completenessScore = Math.min(score, 100);
     await this.submissionsRepository.save(submission);
+    return submission.completenessScore;
+  }
 
-    return score;
+  async submitSubmission(id: string, userId: string): Promise<Submission> {
+    const submission = await this.findOne(id);
+
+    if (submission.submittedById !== userId) {
+      throw new ForbiddenException('You do not have permission to submit this submission');
+    }
+
+    if (submission.status !== SubmissionStatus.DRAFT) {
+      throw new ForbiddenException('Only draft submissions can be submitted');
+    }
+
+    await this.calculateCompletenessScore(id);
+    const updated = await this.findOne(id);
+
+    if (updated.completenessScore < 50) {
+      throw new ForbiddenException(`Submission completeness score is too low (${updated.completenessScore}%). Minimum 50% required.`);
+    }
+
+    updated.status = SubmissionStatus.SUBMITTED;
+    updated.submittedAt = new Date();
+    return this.submissionsRepository.save(updated);
+  }
+
+  async updateStatus(id: string, status: SubmissionStatus): Promise<Submission> {
+    const submission = await this.findOne(id);
+    
+    const allowedTransitions: Record<SubmissionStatus, SubmissionStatus[]> = {
+      [SubmissionStatus.DRAFT]: [SubmissionStatus.SUBMITTED],
+      [SubmissionStatus.SUBMITTED]: [SubmissionStatus.UNDER_REVIEW, SubmissionStatus.DECLINED],
+      [SubmissionStatus.UNDER_REVIEW]: [SubmissionStatus.QUOTED, SubmissionStatus.DECLINED],
+      [SubmissionStatus.QUOTED]: [SubmissionStatus.NEGOTIATING, SubmissionStatus.DECLINED, SubmissionStatus.EXPIRED],
+      [SubmissionStatus.NEGOTIATING]: [SubmissionStatus.BOUND, SubmissionStatus.DECLINED, SubmissionStatus.EXPIRED],
+      [SubmissionStatus.BOUND]: [],
+      [SubmissionStatus.DECLINED]: [],
+      [SubmissionStatus.EXPIRED]: [],
+    };
+
+    if (!allowedTransitions[submission.status].includes(status)) {
+      throw new ForbiddenException(`Cannot transition from ${submission.status} to ${status}`);
+    }
+
+    submission.status = status;
+    if (status === SubmissionStatus.SUBMITTED && !submission.submittedAt) {
+      submission.submittedAt = new Date();
+    }
+    return this.submissionsRepository.save(submission);
   }
 
   async uploadDocument(

@@ -40,10 +40,16 @@ export class SubmissionsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all submissions' })
-  @ApiQuery({ name: 'organizationId', required: false })
-  findAll(@Query('organizationId') organizationId?: string) {
-    return this.submissionsService.findAll(organizationId);
+  @ApiOperation({ summary: 'Get all submissions with filtering and pagination' })
+  @ApiQuery({ name: 'search', required: false })
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'type', required: false })
+  @ApiQuery({ name: 'lineOfBusiness', required: false })
+  @ApiQuery({ name: 'cedantId', required: false })
+  @ApiQuery({ name: 'page', required: false })
+  @ApiQuery({ name: 'limit', required: false })
+  findAll(@Query() filters: any) {
+    return this.submissionsService.findAll(filters);
   }
 
   @Get(':id')
@@ -60,6 +66,12 @@ export class SubmissionsController {
     @Request() req,
   ) {
     return this.submissionsService.update(id, updateSubmissionDto, req.user.userId);
+  }
+
+  @Post(':id/submit')
+  @ApiOperation({ summary: 'Submit a draft submission' })
+  async submitSubmission(@Param('id') id: string, @Request() req) {
+    return this.submissionsService.submitSubmission(id, req.user.userId);
   }
 
   @Patch(':id/status')
