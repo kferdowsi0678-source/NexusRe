@@ -82,6 +82,14 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  async updateLastLogin(id: string): Promise<void> {
+    await this.usersRepository.update(id, { lastLoginAt: new Date() });
+  }
+
+  async updatePassword(id: string, hashedPassword: string): Promise<void> {
+    await this.usersRepository.update(id, { password: hashedPassword });
+  }
+
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
     await this.usersRepository.remove(user);
