@@ -8,6 +8,10 @@ import { SubmissionsModule } from './modules/submissions/submissions.module';
 import { StorageModule } from './modules/storage/storage.module';
 import { FormsModule } from './modules/forms/forms.module'; 
 import { PublicModule } from './modules/public/public.module';
+import { QuotesModule } from './modules/quotes/quotes.module';
+import { AppetiteModule } from './modules/appetite/appetite.module';
+import { MessagingModule } from './modules/messaging/messaging.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
 import { validationSchema } from './config/env.validation'; 
  
 @Module({ 
@@ -41,7 +45,11 @@ import { validationSchema } from './config/env.validation';
     OrganizationsModule, 
     SubmissionsModule,
     FormsModule,
-    PublicModule, 
+    PublicModule,
+    NotificationsModule,
+    QuotesModule,
+    AppetiteModule,
+    MessagingModule, 
   ], 
 }) 
 export class AppModule {}

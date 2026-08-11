@@ -16,6 +16,8 @@ export enum ChangeType {
   DOCUMENT_ADDED = 'document_added',
   DOCUMENT_REMOVED = 'document_removed',
   SUBMITTED = 'submitted',
+  QUOTE_RECEIVED = 'quote_received',
+  QUOTE_STATUS_CHANGED = 'quote_status_changed',
 }
 
 @Entity('submission_history')

@@ -12,6 +12,10 @@ import {
 } from '@/lib/submissions-api';
 import { DocumentManager } from '@/components/document-manager';
 import { HistoryTimeline } from '@/components/history-timeline';
+import { QuotesPanel } from '@/components/quotes-panel';
+import { MessagingPanel } from '@/components/messaging-panel';
+import { MarketMatchesPanel } from '@/components/market-matches-panel';
+import { useRoleFlags } from '@/lib/use-role-flags';
 
 const statusColors: Record<string, string> = {
   draft: 'bg-gray-100 text-gray-800',
@@ -35,6 +39,8 @@ const nextStatuses: Record<string, string[]> = {
   expired: [],
 };
 
+type TabKey = 'details' | 'documents' | 'history' | 'quotes' | 'messages' | 'markets';
+
 function Field({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
     <div>
@@ -56,14 +62,21 @@ export default function SubmissionDetailPage() {
   const calculateScore = useCalculateScore();
 
   const [error, setError] = useState('');
-  const [tab, setTab] = useState<'details' | 'documents' | 'history'>('details');
+  const [tab, setTab] = useState<TabKey>('details');
 
+  const { isReinsurer } = useRoleFlags();
   const roles = useMemo(() => user?.roles?.map((r: any) => r.name) || [], [user]);
   const isReviewer = roles.some((r: string) =>
     ['reinsurer_underwriter', 'reinsurer_admin', 'super_admin'].includes(r),
   );
   const isOwner = submission?.submittedById === user?.id;
   const canEdit = isOwner && submission?.status === 'draft';
+  // Whoever raised the submission speaks for the ceding side, as does anyone in
+  // the cedant organisation. Market suggestions are only useful to them.
+  const cedantSide = !isReinsurer;
+  const tabs: TabKey[] = cedantSide
+    ? ['details', 'documents', 'quotes', 'markets', 'messages', 'history']
+    : ['details', 'documents', 'quotes', 'messages', 'history'];
 
   // Deep link from the create wizard: ?submit=1 focuses the submit action.
   useEffect(() => {
@@ -189,7 +202,7 @@ export default function SubmissionDetailPage() {
       <div className="rounded-lg bg-white shadow">
         <div className="border-b border-gray-200">
           <nav className="flex gap-6 px-6" aria-label="Submission sections">
-            {(['details', 'documents', 'history'] as const).map((key) => (
+            {tabs.map((key) => (
               <button
                 key={key}
                 type="button"
@@ -274,6 +287,18 @@ export default function SubmissionDetailPage() {
 
           {tab === 'documents' && <DocumentManager submissionId={id} canEdit={!!canEdit} />}
           {tab === 'history' && <HistoryTimeline submissionId={id} />}
+          {tab === 'quotes' && (
+            <QuotesPanel
+              submissionId={id}
+              isReinsurer={isReinsurer}
+              isCedantSide={cedantSide}
+              currency={submission.currency}
+            />
+          )}
+          {tab === 'messages' && (
+            <MessagingPanel submissionId={id} isCedantSide={cedantSide} />
+          )}
+          {tab === 'markets' && <MarketMatchesPanel submissionId={id} />}
         </div>
       </div>
     </div>

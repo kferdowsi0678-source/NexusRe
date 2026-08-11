@@ -11,6 +11,16 @@ import { Submission } from './submission.entity';
 import { Organization } from '../../organizations/entities/organization.entity';
 import { User } from '../../users/entities/user.entity';
 
+/**
+ * What the reinsurer is offering. Distinct from QuoteStatus, which tracks where
+ * that offer has got to in the negotiation.
+ */
+export enum QuoteType {
+  INDICATION = 'indication',
+  FIRM_ORDER = 'firm_order',
+  BINDING = 'binding',
+}
+
 export enum QuoteStatus {
   INDICATION = 'indication',
   FIRM_OFFER = 'firm_offer',
@@ -45,8 +55,14 @@ export class Quote {
   @Column()
   submittedById: string;
 
+  @Column({ type: 'enum', enum: QuoteType, default: QuoteType.INDICATION })
+  quoteType: QuoteType;
+
   @Column({ type: 'enum', enum: QuoteStatus, default: QuoteStatus.INDICATION })
   status: QuoteStatus;
+
+  @Column({ type: 'text', nullable: true })
+  declineReason: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 4 })
   rate: number;

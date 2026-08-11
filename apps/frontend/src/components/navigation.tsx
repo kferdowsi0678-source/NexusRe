@@ -4,12 +4,15 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/lib/auth-store';
 import { useLogout } from '@/lib/auth-api';
+import { NotificationBell } from './notification-bell';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', roles: ['all'] },
   { name: 'Submissions', href: '/submissions', roles: ['all'] },
   { name: 'Organizations', href: '/organizations', roles: ['super_admin', 'org_admin'] },
   { name: 'Users', href: '/users', roles: ['super_admin', 'org_admin'] },
+  { name: 'Opportunities', href: '/opportunities', roles: ['reinsurer_underwriter', 'reinsurer_admin'] },
+  { name: 'Appetite', href: '/appetite', roles: ['reinsurer_underwriter', 'reinsurer_admin'] },
   { name: 'Forms', href: '/forms', roles: ['super_admin'] },
   { name: 'Profile', href: '/profile', roles: ['all'] },
 ];
@@ -63,7 +66,8 @@ export function Navigation() {
               ))}
             </div>
           </div>
-          <div className="flex items-center">
+          <div className="flex items-center gap-2">
+            <NotificationBell />
             <div className="flex-shrink-0">
               <span className="text-sm text-gray-700">
                 {user?.firstName} {user?.lastName}
