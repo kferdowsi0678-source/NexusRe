@@ -4,11 +4,19 @@ import { useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/auth-store';
 import { useCurrentUser } from '@/lib/auth-api';
 import { useUpdateUser } from '@/lib/admin-api';
+import {
+  EMAIL_PREFERENCE_LABELS,
+  EmailPreferenceKey,
+  useEmailPreferences,
+  useUpdateEmailPreferences,
+} from '@/lib/email-preferences-api';
 
 export default function ProfilePage() {
   const { user, updateUser: updateStoredUser } = useAuthStore();
   const { data: profile } = useCurrentUser();
   const updateUser = useUpdateUser();
+  const { data: emailPrefs, isLoading: prefsLoading } = useEmailPreferences();
+  const updateEmailPrefs = useUpdateEmailPreferences();
 
   const [details, setDetails] = useState({ firstName: '', lastName: '', phone: '' });
   const [passwords, setPasswords] = useState({ newPassword: '', confirmPassword: '' });
@@ -124,6 +132,41 @@ export default function ProfilePage() {
           </button>
         </div>
       </form>
+
+      <section className="space-y-4 rounded-lg bg-white p-6 shadow">
+        <div>
+          <h2 className="text-lg font-medium text-gray-900">Email notifications</h2>
+          <p className="mt-1 text-sm text-gray-500">
+            In-app notifications are always on. These control email only, and each
+            change saves immediately.
+          </p>
+        </div>
+
+        {prefsLoading ? (
+          <p className="text-sm text-gray-500">Loading preferences...</p>
+        ) : !emailPrefs ? (
+          <p className="text-sm text-gray-500">Preferences are unavailable right now.</p>
+        ) : (
+          <ul className="space-y-3">
+            {EMAIL_PREFERENCE_LABELS.map(({ key, label }) => (
+              <li key={key}>
+                <label className="flex items-center gap-3">
+                  <input
+                    type="checkbox"
+                    checked={emailPrefs[key]}
+                    disabled={updateEmailPrefs.isPending}
+                    onChange={(e) =>
+                      updateEmailPrefs.mutate({ [key as EmailPreferenceKey]: e.target.checked })
+                    }
+                    className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm text-gray-700">{label}</span>
+                </label>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <div className="rounded-lg bg-white p-6 shadow">
         <h2 className="text-lg font-medium text-gray-900">Roles</h2>

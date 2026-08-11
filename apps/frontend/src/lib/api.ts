@@ -27,6 +27,15 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // Rate limited. Surface something a user can act on rather than a bare 429.
+    if (error.response?.status === 429) {
+      const retryAfter = error.response.headers?.['retry-after'];
+      error.message = retryAfter
+        ? 'Too many requests. Try again in ' + retryAfter + ' seconds.'
+        : 'Too many requests. Please slow down and try again shortly.';
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
 

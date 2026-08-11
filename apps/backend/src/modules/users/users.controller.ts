@@ -13,6 +13,7 @@ import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateEmailPreferencesDto } from './dto/update-email-preferences.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthenticatedRequest } from '../../common/interfaces/authenticated-request';
 
@@ -33,6 +34,21 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all users' })
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get('me/email-preferences')
+  @ApiOperation({ summary: 'Email notification preferences for the signed-in user' })
+  getEmailPreferences(@Request() req: AuthenticatedRequest) {
+    return this.usersService.getEmailPreferences(req.user.userId);
+  }
+
+  @Patch('me/email-preferences')
+  @ApiOperation({ summary: 'Update my email notification preferences' })
+  updateEmailPreferences(
+    @Body() dto: UpdateEmailPreferencesDto,
+    @Request() req: AuthenticatedRequest,
+  ) {
+    return this.usersService.updateEmailPreferences(req.user.userId, dto);
   }
 
   @Get('me')

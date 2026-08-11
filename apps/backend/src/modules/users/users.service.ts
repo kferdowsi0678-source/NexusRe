@@ -4,6 +4,8 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { Role } from './entities/role.entity';
+import { EmailPreferences } from './entities/email-preferences.entity';
+import { UpdateEmailPreferencesDto } from './dto/update-email-preferences.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -14,6 +16,8 @@ export class UsersService {
     private usersRepository: Repository<User>,
     @InjectRepository(Role)
     private rolesRepository: Repository<Role>,
+    @InjectRepository(EmailPreferences)
+    private emailPreferencesRepository: Repository<EmailPreferences>,
   ) {}
 
   async create(createUserDto: CreateUserDto): Promise<User> {
@@ -93,5 +97,25 @@ export class UsersService {
   async remove(id: string): Promise<void> {
     const user = await this.findOne(id);
     await this.usersRepository.remove(user);
+  }
+
+  /**
+   * Created lazily on first read, so users who predate this feature get the
+   * entity defaults rather than a 404.
+   */
+  async getEmailPreferences(userId: string): Promise<EmailPreferences> {
+    const existing = await this.emailPreferencesRepository.findOne({ where: { userId } });
+    if (existing) return existing;
+    const created = this.emailPreferencesRepository.create({ userId });
+    return this.emailPreferencesRepository.save(created);
+  }
+
+  async updateEmailPreferences(
+    userId: string,
+    dto: UpdateEmailPreferencesDto,
+  ): Promise<EmailPreferences> {
+    const prefs = await this.getEmailPreferences(userId);
+    Object.assign(prefs, dto);
+    return this.emailPreferencesRepository.save(prefs);
   }
 }
