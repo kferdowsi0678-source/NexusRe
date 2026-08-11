@@ -11,6 +11,7 @@ const navigation = [
   { name: 'Organizations', href: '/organizations', roles: ['super_admin', 'org_admin'] },
   { name: 'Users', href: '/users', roles: ['super_admin', 'org_admin'] },
   { name: 'Forms', href: '/forms', roles: ['super_admin'] },
+  { name: 'Profile', href: '/profile', roles: ['all'] },
 ];
 
 export function Navigation() {
