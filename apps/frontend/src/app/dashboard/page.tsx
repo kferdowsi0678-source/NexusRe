@@ -1,151 +1,292 @@
 'use client';
 
-import { useAuthStore } from '@/lib/auth-store';
 import Link from 'next/link';
+import { ReactNode } from 'react';
+import { useAuthStore } from '@/lib/auth-store';
+import { useRoleFlags } from '@/lib/use-role-flags';
+import {
+  useAnalyticsOverview,
+  useSubmissionFunnel,
+  useSubmissionVolume,
+  useTimeToQuote,
+} from '@/lib/analytics-api';
+import { ChartCard, VizStyles, formatHours, humanise } from '@/components/chart-theme';
+import { StatTile, StatTileGrid } from '@/components/stat-tile';
+import { BarChart } from '@/components/bar-chart';
+import { FunnelChart, FunnelExits } from '@/components/funnel-chart';
+import { VolumeChart } from '@/components/volume-chart';
+
+/** Loading and error states, kept identical across every panel on the page. */
+function Panel({
+  isLoading,
+  isError,
+  onRetry,
+  loadingLabel,
+  children,
+}: {
+  isLoading: boolean;
+  isError: boolean;
+  onRetry: () => void;
+  loadingLabel: string;
+  children: ReactNode;
+}) {
+  if (isLoading) {
+    return <p className="text-sm text-gray-500 dark:text-gray-400">{loadingLabel}</p>;
+  }
+
+  if (isError) {
+    return (
+      <div className="rounded-md bg-red-50 p-4 text-sm text-red-700 dark:bg-red-950 dark:text-red-200">
+        <p>We could not load this data.</p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-2 font-medium underline hover:no-underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
+  }
+
+  return <>{children}</>;
+}
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
-  
-  const userRole = user?.roles?.[0]?.name || '';
-  const orgType = userRole.includes('cedant') ? 'Cedant' : 
-                  userRole.includes('broker') ? 'Broker' : 
-                  userRole.includes('reinsurer') ? 'Reinsurer' : 'Admin';
+  const { isReinsurer, isAdmin, isCedantSide } = useRoleFlags();
+
+  const overview = useAnalyticsOverview();
+  const volume = useSubmissionVolume();
+  const timeToQuote = useTimeToQuote();
+  const funnel = useSubmissionFunnel();
+
+  const audience = isAdmin ? 'Administrator' : isReinsurer ? 'Reinsurer' : 'Cedant';
+  const scopeNote = isAdmin
+    ? 'Every submission on the platform.'
+    : isReinsurer
+    ? 'Risks you have been invited to or quoted on, and your own quotes.'
+    : 'Submissions raised by your organization.';
+
+  const statusRows = (overview.data?.byStatus ?? [])
+    .filter((row) => row.count > 0)
+    .map((row) => ({ label: row.label, value: row.count }));
+
+  const latencyRows = (timeToQuote.data?.byLineOfBusiness ?? []).map((row) => ({
+    label: humanise(row.lineOfBusiness),
+    value: row.medianHours ?? 0,
+    valueLabel: `${formatHours(row.medianHours)} · n=${row.sampleSize}`,
+  }));
 
   return (
     <div className="space-y-6">
+      <VizStyles />
+
       <div>
-        <h1 className="text-3xl font-bold text-gray-900">
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">
           Welcome, {user?.firstName}!
         </h1>
-        <p className="mt-2 text-sm text-gray-600">
-          {orgType} Dashboard
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          {audience} dashboard · {scopeNote}
         </p>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Total Submissions
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">0</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/submissions" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View all submissions
-            </Link>
-          </div>
-        </div>
+      <Panel
+        isLoading={overview.isLoading}
+        isError={overview.isError}
+        onRetry={() => overview.refetch()}
+        loadingLabel="Loading your figures..."
+      >
+        <StatTileGrid>
+          <StatTile
+            label="Total submissions"
+            value={overview.data?.totalSubmissions ?? 0}
+            hint="In scope for you"
+            trend={volume.data?.totals}
+            href="/submissions"
+          />
+          <StatTile
+            label={isReinsurer ? 'Quotes you have issued' : 'Quotes received'}
+            value={overview.data?.totalQuotes ?? 0}
+            hint={
+              overview.data?.totalSubmissions
+                ? `${(
+                    (overview.data.totalQuotes / overview.data.totalSubmissions) || 0
+                  ).toFixed(1)} per submission`
+                : 'No submissions yet'
+            }
+          />
+          <StatTile
+            label="Average completeness"
+            value={`${overview.data?.averageCompletenessScore ?? 0}%`}
+            hint="Submissions need 50% to be sent to market"
+            meter={{ value: overview.data?.averageCompletenessScore ?? 0, max: 100 }}
+          />
+          <StatTile
+            label="Bound conversion"
+            value={`${overview.data?.conversion.conversionRate ?? 0}%`}
+            hint={
+              overview.data?.conversion.decided
+                ? `${overview.data.conversion.bound} bound of ${overview.data.conversion.decided} decided`
+                : 'Nothing decided yet'
+            }
+          />
+        </StatTileGrid>
+      </Panel>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Pending Review
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">0</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/submissions?status=under_review" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View pending
-            </Link>
-          </div>
-        </div>
+      <ChartCard
+        title="Submission volume"
+        subtitle="Created per month over the last 12 months, by line of business"
+      >
+        <Panel
+          isLoading={volume.isLoading}
+          isError={volume.isError}
+          onRetry={() => volume.refetch()}
+          loadingLabel="Loading volume..."
+        >
+          {volume.data && <VolumeChart report={volume.data} />}
+        </Panel>
+      </ChartCard>
 
-        <div className="bg-white overflow-hidden shadow rounded-lg">
-          <div className="p-5">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <svg className="h-6 w-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="ml-5 w-0 flex-1">
-                <dl>
-                  <dt className="text-sm font-medium text-gray-500 truncate">
-                    Completed
-                  </dt>
-                  <dd className="flex items-baseline">
-                    <div className="text-2xl font-semibold text-gray-900">0</div>
-                  </dd>
-                </dl>
-              </div>
-            </div>
-          </div>
-          <div className="bg-gray-50 px-5 py-3">
-            <Link href="/submissions?status=bound" className="text-sm font-medium text-indigo-600 hover:text-indigo-500">
-              View completed
-            </Link>
-          </div>
-        </div>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {isCedantSide || isAdmin ? (
+          <ChartCard
+            title="Placement funnel"
+            subtitle="Submissions that reached each stage of the lifecycle"
+            footer={funnel.data ? <FunnelExits report={funnel.data} /> : undefined}
+          >
+            <Panel
+              isLoading={funnel.isLoading}
+              isError={funnel.isError}
+              onRetry={() => funnel.refetch()}
+              loadingLabel="Loading the funnel..."
+            >
+              {funnel.data && <FunnelChart report={funnel.data} />}
+            </Panel>
+          </ChartCard>
+        ) : (
+          <ChartCard
+            title="Where your risks stand"
+            subtitle="Current status of every submission in your scope"
+          >
+            <Panel
+              isLoading={overview.isLoading}
+              isError={overview.isError}
+              onRetry={() => overview.refetch()}
+              loadingLabel="Loading statuses..."
+            >
+              <BarChart
+                data={statusRows}
+                ariaLabel="Submissions by current status"
+                emptyMessage="No submissions in scope yet."
+              />
+            </Panel>
+          </ChartCard>
+        )}
+
+        <ChartCard
+          title={isReinsurer ? 'Your time to quote' : 'Market response time'}
+          subtitle={
+            isReinsurer
+              ? 'Hours from a submission reaching the market to your first quote'
+              : 'Hours from submitting a risk to the first quote arriving'
+          }
+          footer={
+            timeToQuote.data?.sampleSize ? (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Median {formatHours(timeToQuote.data.medianHours)} · average{' '}
+                {formatHours(timeToQuote.data.averageHours)} · 90th percentile{' '}
+                {formatHours(timeToQuote.data.p90Hours)} · {timeToQuote.data.sampleSize} quoted
+                submission{timeToQuote.data.sampleSize === 1 ? '' : 's'}
+              </p>
+            ) : undefined
+          }
+        >
+          <Panel
+            isLoading={timeToQuote.isLoading}
+            isError={timeToQuote.isError}
+            onRetry={() => timeToQuote.refetch()}
+            loadingLabel="Measuring time to quote..."
+          >
+            <BarChart
+              data={latencyRows}
+              ariaLabel="Median hours to first quote by line of business"
+              emptyMessage="No submission has been quoted yet, so there is nothing to time."
+            />
+          </Panel>
+        </ChartCard>
       </div>
 
-      <div className="bg-white shadow rounded-lg">
+      {(isCedantSide || isAdmin) && (
+        <ChartCard
+          title="Pipeline by status"
+          subtitle="Every submission in scope, by where it currently sits"
+        >
+          <Panel
+            isLoading={overview.isLoading}
+            isError={overview.isError}
+            onRetry={() => overview.refetch()}
+            loadingLabel="Loading statuses..."
+          >
+            <BarChart
+              data={statusRows}
+              ariaLabel="Submissions by current status"
+              emptyMessage="No submissions in scope yet."
+            />
+          </Panel>
+        </ChartCard>
+      )}
+
+      <div className="rounded-lg bg-white shadow dark:bg-gray-900 dark:ring-1 dark:ring-gray-800">
         <div className="px-4 py-5 sm:p-6">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">
-            Quick Actions
-          </h3>
+          <h2 className="text-lg font-medium leading-6 text-gray-900 dark:text-gray-100">
+            Quick actions
+          </h2>
           <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Link
-              href="/submissions/new"
-              className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Create New Submission
-            </Link>
-            <Link
-              href="/submissions"
-              className="inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              View All Submissions
-            </Link>
+            {isReinsurer ? (
+              <>
+                <Link
+                  href="/opportunities"
+                  className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Review opportunities
+                </Link>
+                <Link
+                  href="/appetite"
+                  className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                >
+                  Manage risk appetite
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/submissions/new"
+                  className="inline-flex items-center justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                >
+                  Create new submission
+                </Link>
+                <Link
+                  href="/submissions"
+                  className="inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:bg-gray-800"
+                >
+                  View all submissions
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </div>
 
-      {userRole.includes('admin') && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <div className="flex">
-            <div className="flex-shrink-0">
-              <svg className="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-            </div>
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-blue-800">
-                Administrator Access
-              </h3>
-              <div className="mt-2 text-sm text-blue-700">
-                <p>
-                  You have administrator privileges. You can manage organizations, users, and system settings.
-                </p>
-              </div>
-            </div>
-          </div>
+      {isAdmin && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-4 dark:border-blue-900 dark:bg-blue-950">
+          <h2 className="text-sm font-medium text-blue-800 dark:text-blue-200">
+            Administrator access
+          </h2>
+          <p className="mt-2 text-sm text-blue-700 dark:text-blue-300">
+            These figures cover every organization on the platform. You can also manage
+            organizations, users and system settings.
+          </p>
         </div>
       )}
     </div>

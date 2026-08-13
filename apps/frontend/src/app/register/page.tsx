@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useRegister } from '@/lib/auth-api';
 import api from '@/lib/api';
 import Link from 'next/link';
+import { useTranslation } from '@/lib/i18n';
+import { LanguageSwitcher } from '@/components/language-switcher';
 
 interface Organization {
   id: string;
@@ -21,7 +23,8 @@ interface Role {
 export default function RegisterPage() {
   const router = useRouter();
   const register = useRegister();
-  
+  const { t, tEnum } = useTranslation();
+
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -60,17 +63,17 @@ export default function RegisterPage() {
     setError('');
 
     if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.register.passwordMismatch'));
       return;
     }
 
     if (!formData.organizationId) {
-      setError('Please select an organization');
+      setError(t('auth.register.organizationRequired'));
       return;
     }
 
     if (formData.roleIds.length === 0) {
-      setError('Please select at least one role');
+      setError(t('auth.register.roleRequired'));
       return;
     }
 
@@ -85,7 +88,7 @@ export default function RegisterPage() {
       });
       router.push('/dashboard');
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed. Please try again.');
+      setError(err.response?.data?.message || t('auth.register.failed'));
     }
   };
 
@@ -105,7 +108,7 @@ export default function RegisterPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-600">Loading...</div>
+        <div className="text-gray-600">{t('common.loading')}</div>
       </div>
     );
   }
@@ -113,10 +116,14 @@ export default function RegisterPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
+        <div className="flex justify-end">
+          <LanguageSwitcher />
+        </div>
+
         <div>
-          <h1 className="text-center text-4xl font-bold text-gray-900">NexusRe</h1>
+          <h1 className="text-center text-4xl font-bold text-gray-900">{t('common.appName')}</h1>
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Create your account
+            {t('auth.register.title')}
           </h2>
         </div>
         
@@ -131,7 +138,7 @@ export default function RegisterPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label htmlFor="firstName" className="block text-sm font-medium text-gray-700">
-                  First Name
+                  {t('common.labels.firstName')}
                 </label>
                 <input
                   id="firstName"
@@ -145,7 +152,7 @@ export default function RegisterPage() {
               </div>
               <div>
                 <label htmlFor="lastName" className="block text-sm font-medium text-gray-700">
-                  Last Name
+                  {t('common.labels.lastName')}
                 </label>
                 <input
                   id="lastName"
@@ -161,7 +168,7 @@ export default function RegisterPage() {
 
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email address
+                {t('common.labels.emailAddress')}
               </label>
               <input
                 id="email"
@@ -177,7 +184,7 @@ export default function RegisterPage() {
 
             <div>
               <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                Password
+                {t('common.labels.password')}
               </label>
               <input
                 id="password"
@@ -187,13 +194,13 @@ export default function RegisterPage() {
                 value={formData.password}
                 onChange={handleChange}
                 className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                placeholder="Min. 8 characters"
+                placeholder={t('auth.register.passwordHint')}
               />
             </div>
 
             <div>
               <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
-                Confirm Password
+                {t('auth.register.confirmPassword')}
               </label>
               <input
                 id="confirmPassword"
@@ -208,7 +215,7 @@ export default function RegisterPage() {
 
             <div>
               <label htmlFor="organizationId" className="block text-sm font-medium text-gray-700">
-                Organization
+                {t('common.labels.organization')}
               </label>
               <select
                 id="organizationId"
@@ -218,10 +225,10 @@ export default function RegisterPage() {
                 onChange={handleChange}
                 className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
               >
-                <option value="">Select an organization</option>
+                <option value="">{t('auth.register.selectOrganization')}</option>
                 {organizations.map((org) => (
                   <option key={org.id} value={org.id}>
-                    {org.name} ({org.type})
+                    {org.name} ({tEnum('organizationType', org.type)})
                   </option>
                 ))}
               </select>
@@ -229,7 +236,7 @@ export default function RegisterPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Role(s)
+                {t('common.labels.roles')}
               </label>
               <div className="space-y-2">
                 {roles.map((role) => (
@@ -241,8 +248,9 @@ export default function RegisterPage() {
                       className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                     />
                     <span className="ml-2 text-sm text-gray-700">
-                      {role.name.replace(/_/g, ' ')}
+                      {tEnum('role', role.name)}
                     </span>
+                    {/* Descriptions are authored server-side and are not translated yet. */}
                     <span className="ml-2 text-xs text-gray-500">
                       ({role.description})
                     </span>
@@ -258,14 +266,14 @@ export default function RegisterPage() {
               disabled={register.isPending}
               className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {register.isPending ? 'Creating account...' : 'Create account'}
+              {register.isPending ? t('auth.register.submitting') : t('auth.register.submit')}
             </button>
           </div>
 
           <div className="text-center text-sm">
-            <span className="text-gray-600">Already have an account? </span>
+            <span className="text-gray-600">{t('auth.register.haveAccount')} </span>
             <Link href="/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign in
+              {t('auth.register.signInLink')}
             </Link>
           </div>
         </form>

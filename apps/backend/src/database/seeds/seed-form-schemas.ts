@@ -106,8 +106,9 @@ async function seedFormSchemas() {
     };
 
     await queryRunner.query(
-      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description, "isActive")
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description,
+                                 "isActive", "isPublished", "publishedAt", "lineOfBusiness")
+       VALUES ($1, $2, $3, $4, $5, $6, true, true, now(), 'property')`,
       [
         'Property Facultative Form',
         'property_facultative',
@@ -200,8 +201,9 @@ async function seedFormSchemas() {
     };
 
     await queryRunner.query(
-      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description, "isActive")
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description,
+                                 "isActive", "isPublished", "publishedAt", "lineOfBusiness")
+       VALUES ($1, $2, $3, $4, $5, $6, true, true, now(), 'engineering')`,
       [
         'Engineering Facultative Form',
         'engineering_facultative',
@@ -310,8 +312,9 @@ async function seedFormSchemas() {
     };
 
     await queryRunner.query(
-      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description, "isActive")
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description,
+                                 "isActive", "isPublished", "publishedAt", "lineOfBusiness")
+       VALUES ($1, $2, $3, $4, $5, $6, true, true, now(), NULL)`,
       [
         'Treaty Generic Form',
         'treaty_generic',

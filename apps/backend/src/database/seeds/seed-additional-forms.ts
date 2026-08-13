@@ -100,8 +100,9 @@ async function seedAdditionalFormSchemas() {
     };
 
     await queryRunner.query(
-      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description, "isActive")
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description,
+                                 "isActive", "isPublished", "publishedAt", "lineOfBusiness")
+       VALUES ($1, $2, $3, $4, $5, $6, true, true, now(), 'casualty')`,
       [
         'Casualty Facultative Form',
         'casualty_facultative',
@@ -222,8 +223,9 @@ async function seedAdditionalFormSchemas() {
     };
 
     await queryRunner.query(
-      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description, "isActive")
-       VALUES ($1, $2, $3, $4, $5, $6, true)`,
+      `INSERT INTO form_schemas (name, "formType", version, schema, "uiSchema", description,
+                                 "isActive", "isPublished", "publishedAt", "lineOfBusiness")
+       VALUES ($1, $2, $3, $4, $5, $6, true, true, now(), 'energy')`,
       [
         'Energy Facultative Form',
         'energy_facultative',

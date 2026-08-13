@@ -1,9 +1,16 @@
-import { IsString, IsEnum, IsNotEmpty, IsOptional, IsBoolean } from 'class-validator';
+import {
+  IsString,
+  IsEnum,
+  IsNotEmpty,
+  IsObject,
+  IsOptional,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { FormType } from '../entities/form-schema.entity';
+import { LineOfBusiness } from '../../submissions/entities/submission.entity';
 
 export class CreateFormSchemaDto {
-  @ApiProperty()
+  @ApiProperty({ example: 'Property Facultative Form' })
   @IsString()
   @IsNotEmpty()
   name: string;
@@ -13,30 +20,33 @@ export class CreateFormSchemaDto {
   @IsNotEmpty()
   formType: FormType;
 
-  @ApiProperty()
+  @ApiProperty({ required: false, default: '1.0.0', description: 'Defaults to 1.0.0' })
   @IsString()
   @IsNotEmpty()
-  version: string;
+  @IsOptional()
+  version?: string;
 
-  @ApiProperty({ type: 'object' })
-  @IsNotEmpty()
-  schema: any;
+  @ApiProperty({ type: 'object', description: 'JSON Schema body driving the dynamic form' })
+  @IsObject()
+  schema: Record<string, any>;
 
   @ApiProperty({ type: 'object', required: false })
+  @IsObject()
   @IsOptional()
-  uiSchema?: any;
+  uiSchema?: Record<string, any>;
 
   @ApiProperty({ type: 'object', required: false })
+  @IsObject()
   @IsOptional()
-  validationRules?: any;
+  validationRules?: Record<string, any>;
+
+  @ApiProperty({ enum: LineOfBusiness, required: false })
+  @IsEnum(LineOfBusiness)
+  @IsOptional()
+  lineOfBusiness?: LineOfBusiness;
 
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
   description?: string;
-
-  @ApiProperty({ required: false, default: true })
-  @IsBoolean()
-  @IsOptional()
-  isActive?: boolean;
 }

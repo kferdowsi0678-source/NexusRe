@@ -9,9 +9,11 @@ import {
   useNotifications,
   useUnreadCount,
 } from '@/lib/notifications-api';
+import { useTranslation } from '@/lib/i18n';
 
 export function NotificationBell() {
   const router = useRouter();
+  const { t, formatDateTime } = useTranslation();
   const [open, setOpen] = useState(false);
   const { data: unread = 0 } = useUnreadCount();
   const { data: notifications, isLoading } = useNotifications();
@@ -30,7 +32,11 @@ export function NotificationBell() {
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
+        aria-label={
+          unread
+            ? t('notifications.ariaLabelWithUnread', { count: unread })
+            : t('notifications.ariaLabel')
+        }
         aria-expanded={open}
         className="relative rounded-full p-2 text-gray-500 hover:bg-gray-100 hover:text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500"
       >
@@ -52,23 +58,25 @@ export function NotificationBell() {
       {open && (
         <div className="absolute right-0 z-20 mt-2 w-80 rounded-md border border-gray-200 bg-white shadow-lg">
           <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
-            <span className="text-sm font-medium text-gray-900">Notifications</span>
+            <span className="text-sm font-medium text-gray-900">{t('notifications.title')}</span>
             {unread > 0 && (
               <button
                 type="button"
                 onClick={() => markAllRead.mutate()}
                 className="text-xs font-medium text-indigo-600 hover:text-indigo-500"
               >
-                Mark all read
+                {t('notifications.markAllRead')}
               </button>
             )}
           </div>
 
           <div className="max-h-80 overflow-y-auto">
             {isLoading ? (
-              <p className="px-4 py-6 text-center text-sm text-gray-500">Loading...</p>
+              <p className="px-4 py-6 text-center text-sm text-gray-500">{t('common.loading')}</p>
             ) : !notifications?.length ? (
-              <p className="px-4 py-6 text-center text-sm text-gray-500">Nothing yet.</p>
+              <p className="px-4 py-6 text-center text-sm text-gray-500">
+                {t('notifications.empty')}
+              </p>
             ) : (
               <ul className="divide-y divide-gray-100">
                 {notifications.map((notification) => (
@@ -85,7 +93,7 @@ export function NotificationBell() {
                         <p className="mt-0.5 truncate text-xs text-gray-600">{notification.body}</p>
                       )}
                       <p className="mt-1 text-xs text-gray-400">
-                        {new Date(notification.createdAt).toLocaleString()}
+                        {formatDateTime(notification.createdAt)}
                       </p>
                     </button>
                   </li>

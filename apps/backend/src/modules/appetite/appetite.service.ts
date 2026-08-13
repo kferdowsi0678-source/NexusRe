@@ -7,6 +7,13 @@ import { Submission, SubmissionStatus } from '../submissions/entities/submission
 import { CreateRiskAppetiteDto } from './dto/create-risk-appetite.dto';
 import { UpdateRiskAppetiteDto } from './dto/update-risk-appetite.dto';
 import { MatchableSubmission, matchAppetite, rankMatches } from './appetite-matching';
+import {
+  BlendedMatch,
+  blendAiAssessments,
+  rankBlendedMatches,
+  withoutAi,
+} from './appetite-ai-ranking';
+import { MarketIntelligenceService } from './market-intelligence.service';
 import { AuthenticatedUser } from '../../common/interfaces/authenticated-request';
 
 /** Submissions that are actually open to being matched to a market. */
@@ -26,6 +33,7 @@ export class AppetiteService {
     private organizationsRepository: Repository<Organization>,
     @InjectRepository(Submission)
     private submissionsRepository: Repository<Submission>,
+    private readonly marketIntelligence: MarketIntelligenceService,
   ) {}
 
   private async requireReinsurerOrg(user: AuthenticatedUser): Promise<Organization> {
@@ -84,7 +92,7 @@ export class AppetiteService {
    * Suggest markets for a submission. The risk's territory is taken from the
    * cedant's country, which is the closest thing the current model has.
    */
-  async matchesForSubmission(submissionId: string) {
+  async matchesForSubmission(submissionId: string, useAi = true) {
     const submission = await this.submissionsRepository.findOne({
       where: { id: submissionId },
       relations: ['cedant'],
@@ -118,11 +126,32 @@ export class AppetiteService {
       })
       .filter((row) => row.eligible);
 
+    // The rule ranking is what gets returned if the model is unavailable or
+    // says nothing useful, so it is computed first and never depended on the
+    // AI step succeeding.
+    const ruleRanked = rankMatches(rows);
+
+    let matches: BlendedMatch[] = withoutAi(ruleRanked);
+    let assisted = false;
+
+    if (useAi && this.marketIntelligence.isAvailable) {
+      const assessments = await this.marketIntelligence.assess(
+        { ...target, title: submission.title, description: submission.description },
+        ruleRanked,
+      );
+      if (assessments.length > 0) {
+        matches = rankBlendedMatches(blendAiAssessments(ruleRanked, assessments));
+        assisted = true;
+      }
+    }
+
     return {
       submissionId,
       territory: target.country,
-      matchCount: rows.length,
-      matches: rankMatches(rows),
+      matchCount: matches.length,
+      /** True when model rationale is present; the UI badges these rows. */
+      aiAssisted: assisted,
+      matches,
     };
   }
 
