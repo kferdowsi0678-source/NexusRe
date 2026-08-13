@@ -15,6 +15,8 @@ import { HistoryTimeline } from '@/components/history-timeline';
 import { QuotesPanel } from '@/components/quotes-panel';
 import { MessagingPanel } from '@/components/messaging-panel';
 import { MarketMatchesPanel } from '@/components/market-matches-panel';
+import { ExtractionPanel } from '@/components/extraction-panel';
+import { PlacementSlipButton } from '@/components/placement-slip-button';
 import { useRoleFlags } from '@/lib/use-role-flags';
 
 const statusColors: Record<string, string> = {
@@ -39,7 +41,24 @@ const nextStatuses: Record<string, string[]> = {
   expired: [],
 };
 
-type TabKey = 'details' | 'documents' | 'history' | 'quotes' | 'messages' | 'markets';
+type TabKey =
+  | 'details'
+  | 'documents'
+  | 'extraction'
+  | 'history'
+  | 'quotes'
+  | 'messages'
+  | 'markets';
+
+const TAB_LABELS: Record<TabKey, string> = {
+  details: 'Details',
+  documents: 'Documents',
+  extraction: 'Extracted data',
+  history: 'History',
+  quotes: 'Quotes',
+  messages: 'Messages',
+  markets: 'Markets',
+};
 
 function Field({ label, value }: { label: string; value?: React.ReactNode }) {
   return (
@@ -75,8 +94,8 @@ export default function SubmissionDetailPage() {
   // the cedant organisation. Market suggestions are only useful to them.
   const cedantSide = !isReinsurer;
   const tabs: TabKey[] = cedantSide
-    ? ['details', 'documents', 'quotes', 'markets', 'messages', 'history']
-    : ['details', 'documents', 'quotes', 'messages', 'history'];
+    ? ['details', 'documents', 'extraction', 'quotes', 'markets', 'messages', 'history']
+    : ['details', 'documents', 'extraction', 'quotes', 'messages', 'history'];
 
   // Deep link from the create wizard: ?submit=1 focuses the submit action.
   useEffect(() => {
@@ -142,6 +161,8 @@ export default function SubmissionDetailPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <PlacementSlipButton submissionId={id} reference={submission.title} />
+
           <button
             type="button"
             onClick={() => calculateScore.mutate(id)}
@@ -201,19 +222,19 @@ export default function SubmissionDetailPage() {
 
       <div className="rounded-lg bg-white shadow">
         <div className="border-b border-gray-200">
-          <nav className="flex gap-6 px-6" aria-label="Submission sections">
+          <nav className="flex gap-6 overflow-x-auto px-6" aria-label="Submission sections">
             {tabs.map((key) => (
               <button
                 key={key}
                 type="button"
                 onClick={() => setTab(key)}
-                className={`border-b-2 py-4 text-sm font-medium capitalize ${
+                className={`whitespace-nowrap border-b-2 py-4 text-sm font-medium ${
                   tab === key
                     ? 'border-indigo-500 text-indigo-600'
                     : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                 }`}
               >
-                {key}
+                {TAB_LABELS[key]}
               </button>
             ))}
           </nav>
@@ -297,6 +318,9 @@ export default function SubmissionDetailPage() {
           )}
           {tab === 'messages' && (
             <MessagingPanel submissionId={id} isCedantSide={cedantSide} />
+          )}
+          {tab === 'extraction' && (
+            <ExtractionPanel submissionId={id} canReview={cedantSide} />
           )}
           {tab === 'markets' && <MarketMatchesPanel submissionId={id} />}
         </div>

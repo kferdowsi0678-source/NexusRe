@@ -56,3 +56,6 @@ temp/
 
 # Uploads
 uploads/
+
+# TypeScript incremental build cache
+*.tsbuildinfo

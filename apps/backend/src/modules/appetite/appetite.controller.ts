@@ -6,10 +6,11 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   Request,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AppetiteService } from './appetite.service';
 import { CreateRiskAppetiteDto } from './dto/create-risk-appetite.dto';
 import { UpdateRiskAppetiteDto } from './dto/update-risk-appetite.dto';
@@ -75,8 +76,18 @@ export class AppetiteController {
   }
 
   @Get('submissions/:submissionId/matches')
-  @ApiOperation({ summary: 'Suggested markets for a submission' })
-  matches(@Param('submissionId') submissionId: string) {
-    return this.appetiteService.matchesForSubmission(submissionId);
+  @ApiOperation({
+    summary: 'Suggested markets for a submission',
+    description:
+      'Rule-based eligibility, re-ranked and explained by the model when one is configured. ' +
+      'Pass ai=false to see the unassisted rule ranking.',
+  })
+  @ApiQuery({
+    name: 'ai',
+    required: false,
+    description: 'Set to "false" to skip model re-ranking',
+  })
+  matches(@Param('submissionId') submissionId: string, @Query('ai') ai?: string) {
+    return this.appetiteService.matchesForSubmission(submissionId, ai !== 'false');
   }
 }

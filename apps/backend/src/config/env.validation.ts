@@ -58,7 +58,7 @@ export const validationSchema = Joi.object({
   // AI services — optional. Without a key, extraction and AI matching fall back
   // to deterministic heuristics rather than failing.
   ANTHROPIC_API_KEY: Joi.string().optional().allow(''),
-  ANTHROPIC_MODEL: Joi.string().default('claude-sonnet-4-5'),
+  ANTHROPIC_MODEL: Joi.string().default('claude-opus-5'),
   AWS_TEXTRACT_REGION: Joi.string().optional().allow(''),
   AI_EXTRACTION_ENABLED: Joi.boolean().default(true),
 });

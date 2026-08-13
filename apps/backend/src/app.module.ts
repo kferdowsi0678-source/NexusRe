@@ -1,7 +1,7 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './modules/auth/auth.module';
 import { UsersModule } from './modules/users/users.module';
@@ -16,7 +16,13 @@ import { MessagingModule } from './modules/messaging/messaging.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { EmailModule } from './modules/email/email.module';
+import { ExtractionModule } from './modules/extraction/extraction.module';
+import { DocumentsExportModule } from './modules/documents-export/documents-export.module';
+import { AnalyticsModule } from './modules/analytics/analytics.module';
 import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
+import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 import { validationSchema } from './config/env.validation';
 
 @Module({
@@ -68,10 +74,22 @@ import { validationSchema } from './config/env.validation';
     QuotesModule,
     AppetiteModule,
     MessagingModule,
+    ExtractionModule,
+    DocumentsExportModule,
+    AnalyticsModule,
   ],
   providers: [
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Logging wraps auditing so a slow audit write is visible in the timing.
+    { provide: APP_INTERCEPTOR, useClass: LoggingInterceptor },
     { provide: APP_INTERCEPTOR, useClass: AuditInterceptor },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer): void {
+    // Runs before guards and interceptors so every log line and error envelope
+    // downstream can quote the same correlation id.
+    consumer.apply(RequestIdMiddleware).forRoutes('*');
+  }
+}

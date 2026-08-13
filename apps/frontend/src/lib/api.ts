@@ -27,6 +27,16 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // The API returns `message` as an array so it can carry several validation
+    // problems at once. Components render it directly, and React concatenates a
+    // string array with no separator, so it is joined into readable prose here
+    // rather than at every call site. The original list stays on `messages`.
+    const data = error.response?.data;
+    if (data && Array.isArray(data.message)) {
+      data.messages = data.message;
+      data.message = data.message.join(' ');
+    }
+
     // Rate limited. Surface something a user can act on rather than a bare 429.
     if (error.response?.status === 429) {
       const retryAfter = error.response.headers?.['retry-after'];
