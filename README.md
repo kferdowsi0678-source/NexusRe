@@ -35,41 +35,64 @@ Non-Life only: Property, Casualty, Specialty, Energy, Cyber, Political Violence,
 
 ## 📋 Current Implementation Status
 
-### ✅ Completed Features
+**All phases of `Todolist.md` (0 through 5) are implemented.** `STATUS.md` is the
+authoritative record of what has been *verified* versus merely written — compile,
+build and 181 unit tests are executed results; anything requiring a live database,
+S3 bucket, SMTP server or model API key is still unproven.
 
-#### Phase 1: Project Foundation
-- Monorepo structure with pnpm workspaces
-- Next.js 15 frontend application
-- NestJS backend API
-- Docker configuration for all services
-- TypeScript configuration
-- Environment variable setup
+### ✅ Implemented
 
-#### Phase 2: Authentication & Authorization
-- User authentication with JWT
-- Local authentication strategy
-- Password hashing with bcrypt
-- Role-based access control (RBAC) foundation
-- User and Organization management
-- API endpoints with Swagger documentation
+#### Foundation
+- pnpm-workspace monorepo, Next.js 15 frontend, NestJS backend, Docker compose
+- 9 TypeORM migrations, seed scripts for roles, organizations, form schemas and appetite
+- Joi-validated environment configuration, separate dev/staging/production settings
 
-#### Phase 3: Risk Submission Foundation
-- Submission entity (Treaty & Facultative)
-- Submission document management
-- Quote entity and workflow
-- Completeness scoring system
-- Status lifecycle management
-- CRUD operations with access control
+#### Authentication & access control
+- JWT with rotating refresh tokens, bcrypt hashing, expiring password-reset tokens
+- Role-based access control across every module
+- User, organization and membership management
 
-### 🚧 In Progress / Planned
+#### Submissions & documents
+- Treaty and facultative submissions with a draft → submitted workflow
+- Enforced status transitions and a full change history
+- Weighted 100-point completeness score, gated at 50% before submitting
+- S3 pre-signed upload/download with file type and 50MB validation
+- Dynamic forms driven by JSON Schema, with conditional logic
 
-- MFA (Multi-Factor Authentication)
-- Document upload with AWS S3
-- AI-powered document extraction
-- Risk appetite matching engine
-- Frontend UI components
-- Database migrations
-- Seed data for roles and initial admin
+#### Marketplace & negotiation
+- Quotes with indication / firm order / binding types and an enforced lifecycle
+- Quote comparison matrix
+- Risk appetite definitions and rule-based market matching
+- Per-submission message threads with in-app and email notifications
+
+#### Security & operations
+- Immutable audit trail with credential redaction, written off the response path
+- Rate limiting, helmet security headers, strict CORS
+- One error envelope for every endpoint, carrying a correlation id
+- Structured request logging, JSON in production
+
+#### AI & analytics
+- Document extraction via the Anthropic API with native PDF and image input,
+  degrading to deterministic local parsing when no key is configured
+- Human-in-the-loop review: a proposed field reaches the submission only after a
+  reviewer accepts or edits it
+- AI-assisted market matching layered over the rule engine, which still owns
+  eligibility
+- Dashboard analytics: volume, time to first quote, conversion rate, status funnel
+- Placement slip / submission summary PDF export, with per-viewer quote visibility
+
+#### Presentation
+- English and French, with the French dictionary compile-checked against English
+- Form schema admin panel with live preview
+
+### 🚧 Remaining
+
+- Runtime verification against a real database, S3 bucket and model API key
+- Controller/integration tests and an E2E test for the main flow
+- MFA (the data model accommodates it; the flow is not built)
+- Redis-backed throttler store — the in-memory one is per-instance
+- Weekly digest job — the preference toggle exists, nothing sends it
+- Translating the remaining pages into French
 
 ## 🚀 Getting Started
 
@@ -206,8 +229,49 @@ NexusRe/
 - `PATCH /api/submissions/:id/status` - Update submission status
 - `POST /api/submissions/:id/calculate-score` - Calculate completeness
 - `DELETE /api/submissions/:id` - Delete submission
+- `GET /api/submissions/:id/placement-slip` - Download the placement slip as a PDF
+
+### Document extraction
+- `POST /api/submissions/:id/extractions` - Read a document, propose risk fields
+- `GET /api/submissions/:id/extractions` - List extraction runs
+- `GET /api/submissions/:id/extractions/:extractionId` - One run with its fields
+- `PATCH /api/submissions/:id/extractions/:extractionId/review` - Accept/edit/reject fields
+- `POST /api/submissions/:id/extractions/:extractionId/apply` - Write reviewed fields in
+
+### Marketplace
+- `GET /api/submissions/:id/matches` - Suggested markets (`?ai=false` for rules only)
+- `GET /api/risk-appetite` - Manage appetite definitions (reinsurers)
+- `GET /api/risk-appetite/opportunities` - Submissions matching my appetite
+
+### Analytics
+- `GET /api/analytics/overview` - Counts by status, conversion rate, average completeness
+- `GET /api/analytics/time-to-quote` - Average and median hours to first quote
+- `GET /api/analytics/volume` - Submissions per month by line of business
+- `GET /api/analytics/funnel` - How far submissions get through the lifecycle
+
+### Form schema administration (super admin)
+- `GET /api/forms/admin/schemas` - List every schema and version
+- `POST /api/forms/admin/schemas` - Create a schema
+- `PATCH /api/forms/admin/schemas/:id` - Edit, creating a new version
+- `POST /api/forms/admin/schemas/:id/publish` - Publish or unpublish a version
 
 **API Documentation**: http://localhost:3001/api/docs
+
+### Error responses
+
+Every endpoint returns the same envelope on failure. Quote `requestId` when
+reporting a problem — it appears in the server logs for the same request.
+
+```json
+{
+  "statusCode": 400,
+  "error": "validation_failed",
+  "message": ["sumInsured must be a positive number"],
+  "requestId": "4f2c1a90-...",
+  "path": "/api/submissions",
+  "timestamp": "2026-08-13T09:14:22.001Z"
+}
+```
 
 ## 🗄️ Database Schema
 

@@ -1,9 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import PDFDocument from 'pdfkit';
 import { Organization } from '../organizations/entities/organization.entity';
 import { SubmissionsService } from '../submissions/submissions.service';
+import { AuthenticatedUser } from '../../common/interfaces/authenticated-request';
+import { applySlipAccess, resolveSlipAccess } from './placement-slip-access';
 import {
   EMPTY_VALUE,
   PlacementSlipModel,
@@ -60,13 +62,30 @@ export class PlacementSlipService {
   ) {}
 
   /**
-   * Loads the submission through SubmissionsService so the slip is subject to
-   * exactly the same lookup and access rules as the detail endpoint.
+   * Loads the submission and builds the slip for a specific viewer.
+   *
+   * Authorization is enforced here rather than inherited from
+   * SubmissionsService.findOne, which is an unauthenticated lookup. The slip
+   * aggregates every market's rate, premium and capacity onto one page, so a
+   * reinsurer receives it with its own quotes only.
    */
-  async buildModel(submissionId: string): Promise<PlacementSlipModel> {
+  async buildModel(
+    submissionId: string,
+    viewer: AuthenticatedUser,
+  ): Promise<PlacementSlipModel> {
     const submission = await this.submissionsService.findOne(submissionId);
+
+    const access = resolveSlipAccess(submission, viewer);
+    if (access.kind === 'denied') {
+      throw new ForbiddenException('You do not have access to this submission');
+    }
+
     const broker = await this.resolveBroker(submission);
-    return buildPlacementSlip(submission, { broker, generatedAt: new Date() });
+
+    return buildPlacementSlip(
+      { ...submission, quotes: applySlipAccess(submission.quotes, access) },
+      { broker, generatedAt: new Date() },
+    );
   }
 
   /**

@@ -1,6 +1,7 @@
-import { Controller, Get, Param, Res, UseGuards } from '@nestjs/common';
+import { Controller, Get, Param, Request, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiProduces, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { AuthenticatedRequest } from '../../common/interfaces/authenticated-request';
 import { PdfResponse, PlacementSlipService } from './placement-slip.service';
 
 @ApiTags('documents-export')
@@ -12,13 +13,18 @@ export class DocumentsExportController {
 
   /**
    * The model is built before a single byte is written, so a missing submission
-   * still surfaces as a normal JSON 404 rather than a truncated PDF.
+   * or a rejected viewer still surfaces as a normal JSON 404/403 rather than a
+   * truncated PDF.
    */
   @Get(':id/placement-slip')
   @ApiOperation({ summary: 'Download the placement slip for a submission as a PDF' })
   @ApiProduces('application/pdf')
-  async placementSlip(@Param('id') id: string, @Res() res: PdfResponse): Promise<void> {
-    const model = await this.placementSlipService.buildModel(id);
+  async placementSlip(
+    @Param('id') id: string,
+    @Request() req: AuthenticatedRequest,
+    @Res() res: PdfResponse,
+  ): Promise<void> {
+    const model = await this.placementSlipService.buildModel(id, req.user);
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${model.fileName}"`);
